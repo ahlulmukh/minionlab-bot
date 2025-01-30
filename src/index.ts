@@ -1,66 +1,54 @@
 import chalk from "chalk";
-import readline from "readline";
-import { AccountManager } from "./classes/AccountManager";
-import { ProxyManager } from "./classes/ProxyManager";
-import { WebSocketManager } from "./classes/WebSocketManager";
+import fs from "fs";
+import { getRandomProxy, loadProxies } from "./classes/proxy";
+import { SocketStream } from "./classes/ws";
+import { logMessage, rl } from "./utils/logger";
 
-class AirdropBot {
-  private accountManager: AccountManager;
-  private proxyManager: ProxyManager;
-  private webSocketManager: WebSocketManager;
+async function main(): Promise<void> {
+  console.log(
+    chalk.cyan(`
+░█▄█░▀█▀░█▀█░▀█▀░█▀█░█▀█
+░█░█░░█░░█░█░░█░░█░█░█░█
+░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀░▀
+  By : El Puqus Airdrop
+   github.com/ahlulmukh
+ Use it at your own risk
+  `)
+  );
 
-  constructor() {
-    this.accountManager = new AccountManager();
-    this.proxyManager = new ProxyManager();
-    this.webSocketManager = new WebSocketManager(
-      this.accountManager,
-      this.proxyManager
-    );
+  const accounts = fs
+    .readFileSync("accountsbot.txt", "utf8")
+    .split("\n")
+    .filter(Boolean);
+  const count = accounts.length;
+
+  const proxiesLoaded = loadProxies();
+  if (!proxiesLoaded) {
+    console.log(chalk.yellow("No proxy available. Using default IP."));
   }
 
-  async initialize(): Promise<void> {
-    this.displayHeader();
-    this.accountManager.loadAccounts();
-    this.proxyManager.loadProxies();
+  let successful = 0;
 
-    const useProxy = await this.promptUseProxy();
-    if (useProxy && this.proxyManager.proxies.length < this.accountManager.accounts.length) {
-      console.error(
-        "Not enough proxies for the number of accounts. Please add more proxies."
-      );
-      process.exit(1);
+  for (let i = 0; i < count; i++) {
+    console.log(chalk.white("-".repeat(85)));
+    logMessage(i + 1, count, "Process", "debug");
+    const [email, password] = accounts[i].split(":");
+    const currentProxy = await getRandomProxy();
+    const socketStream = new SocketStream(email, password, currentProxy);
+
+    try {
+      await socketStream.login();
+      await socketStream.waitUntilReady();
+      successful++;
+    } catch (err) {
+      logMessage(i + 1, count, `Error: ${(err as any).message}`, "error");
     }
-
-    this.webSocketManager.initialize(useProxy);
   }
 
-  private displayHeader(): void {
-    console.clear();
-    console.log(
-      chalk.green(` ____  _                                 _    ___ 
- / ___|| |_ _ __ ___  __ _ _ __ ___      / \\  |_ _|
- \\___ \\| __| '__/ _ \\/ _\` | '_ \` _ \\    / _ \\  | | 
-  ___) | |_| | |  __/ (_| | | | | | |  / ___ \\ | | 
- |____/ \\__|_|  \\___|\\__,_|_| |_| |_| /_/   \\_\\___|`)
-    );
-    console.log(chalk.green("          El Puqus Airdrop Bot                  "));
-    console.log(chalk.green("          github.com/ahlulmukh                  "));
-  }
-
-  private async promptUseProxy(): Promise<boolean> {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
-    return new Promise((resolve) => {
-      rl.question("Do you want to use a proxy? (y/n): ", (answer: string) => {
-        rl.close();
-        resolve(answer.toLowerCase() === "y");
-      });
-    });
-  }
+  rl.close();
 }
 
-const bot = new AirdropBot();
-bot.initialize();
+main().catch((err) => {
+  console.error(chalk.red("Error occurred:"), err);
+  process.exit(1);
+});

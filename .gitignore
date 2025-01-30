@@ -2,5 +2,5 @@ node_modules
 test.txt
 package-lock.json
 dist
-accounts.txt
+accountsbot.txt
 proxy.txt
