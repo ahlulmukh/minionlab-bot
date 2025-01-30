@@ -13,6 +13,7 @@ export const prompt = (question: string): Promise<string> => {
     });
   });
 };
+//
 
 export function logMessage(
   accountNum: number | null = null,
