@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from "axios";
+import chalk from "chalk";
 import WebSocket from "ws";
 import { logMessage } from "../utils/logger";
 import { getProxyAgent } from "./proxy";
@@ -76,9 +77,7 @@ export class SocketStream {
     return new Promise((resolve) => {
       const checkReady = async () => {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-          logMessage(this.currentNum, this.total, `Account ${this.currentNum} is fully ready`, "success");
-          await this.getPoint();
-          
+          logMessage(this.currentNum, this.total, `Account ${this.currentNum} is fully ready`, "success");          
           resolve();
         } else {
           setTimeout(checkReady, 1000);
@@ -104,7 +103,7 @@ export class SocketStream {
     this.ws.onopen = () => {
       logMessage(this.currentNum, this.total, `WebSocket connected for account ${this.currentNum}`, "success");
       this.sendRegisterMessage();
-      this.startPinging();
+      //this.startPinging();
     };
 
     this.ws.onmessage = (event) => {
@@ -182,15 +181,16 @@ export class SocketStream {
     }
   }
 
-  private startPinging(): void {
+  public startPinging(): void {
     const pingServer = async () => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify({ type: "ping" }));
+        await this.realTime();
       }
-
+  
       setTimeout(pingServer, 60000);
     };
-
+  
     pingServer();
   }
 
@@ -207,6 +207,30 @@ export class SocketStream {
   
       if (response && response.data) {
         const { data } = response.data;
+        const message = `Successfully retrieved data for account ${this.currentNum}`;
+        logMessage(this.currentNum, this.total, message, "success");
+        logMessage(this.currentNum, this.total, `Total Points = ${data.totalScore ?? 0}`, "success");
+        logMessage(this.currentNum, this.total, `Today Points = ${data.todayScore ?? 0}`, "success");
+      }
+    } catch (error) {
+      logMessage(this.currentNum, this.total, `Error retrieving points for ${this.email}: ${(error as any).message}`, "error");
+    }
+  }
+
+  private async realTime(): Promise<void> {
+    const pointUrl = `https://api.allstream.ai/web/v1/dashBoard/info`;
+  
+    try {
+      const response = await this.makeRequest("GET", pointUrl, {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+  
+      if (response && response.data) {
+        const { data } = response.data;
+        console.log(chalk.white("-".repeat(85)));
         const message = `Successfully retrieved data for account ${this.currentNum}`;
         logMessage(this.currentNum, this.total, message, "success");
         logMessage(this.currentNum, this.total, `Total Points = ${data.totalScore ?? 0}`, "success");
