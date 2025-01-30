@@ -18,27 +18,49 @@ export function logMessage(
   accountNum: number | null = null,
   total: number | null = null,
   message: string = "",
-  messageType: string = "info"
-): void {
-  const timestamp = new Date().toISOString().replace("T", " ").substring(0, 19);
-  const accountStatus = accountNum && total ? `${accountNum}/${total}` : "";
+  messageType: any = "info"
+) {
+  const now = new Date();
+  const timestamp = now
+    .toLocaleString("id-ID", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    })
+    .replace(/\./g, ":")
+    .replace(/, /g, " ");
+  const accountStatus = accountNum && total ? `[${accountNum}/${total}] ` : "";
 
-  const colors: { [key: string]: chalk.Chalk } = {
-    info: chalk.white,
-    success: chalk.green,
-    error: chalk.red,
-    warning: chalk.yellow,
-    process: chalk.cyan,
-    debug: chalk.magenta,
-  };
+  let logText;
+  switch (messageType) {
+    case "success":
+      logText = chalk.green(`[✓] ${message}`);
+      break;
+    case "error":
+      logText = chalk.red(`[-] ${message}`);
+      break;
+    case "process":
+      logText = chalk.yellow(`[!] ${message}`);
+      break;
+    case "debug":
+      logText = chalk.blue(`[~] ${message}`);
+      break;
+    default:
+      logText = chalk.white(`[?] ${message}`);
+  }
 
-  const logColor = colors[messageType] || chalk.white;
   console.log(
-    `${chalk.white("[")}${chalk.dim(timestamp)}${chalk.white("]")} ` +
-      `${chalk.white("[")}${chalk.yellow(accountStatus)}${chalk.white("]")} ` +
-      `${logColor(message)}`
+    `${chalk.white("[")}${chalk.dim(timestamp)}${chalk.white(
+      "]"
+    )} ${accountStatus}${logText}`
   );
 }
+
+
 
 export { rl };
 

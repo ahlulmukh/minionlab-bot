@@ -12,13 +12,18 @@ export class SocketStream {
   private browserId: string = "";
   private userId: string = "";
   private accessToken: string = "";
+  private currentNum: number;
+  private total: number;
 
-  constructor(email: string, password: string, proxy: string | null = null) {
+
+  constructor(email: string, password: string, proxy: string | null = null, currentNum : number, total: number) {
     this.email = email;
     this.password = password;
+    this.currentNum = currentNum;
+    this.total = total
     this.proxy = proxy;
     this.axiosConfig = {
-      ...(this.proxy && { httpsAgent: getProxyAgent(this.proxy) }),
+      ...(this.proxy && { httpsAgent: getProxyAgent(this.proxy, this.currentNum, this.total) }),
       timeout: 60000,
     };
   }
@@ -35,7 +40,7 @@ export class SocketStream {
         return response;
       } catch (error) {
         if (i === retries - 1) {
-          logMessage(null, null, `Request failed: ${(error as any).message}`, "error");
+          logMessage(this.currentNum, this.total, `Request failed: ${(error as any).message}`, "error");
           return null;
         }
         logMessage(null, null, `Retrying... (${i + 1}/${retries})`, "warning");
@@ -59,19 +64,21 @@ export class SocketStream {
         this.userId = data.user.uuid;
         this.accessToken = data.token;
         this.browserId = this.generateBrowserId();
-        logMessage(null, null, `Logged in successfully for ${this.email}`, "success");
+        logMessage(this.currentNum, this.total, `Login successfully for ${this.email}`, "success");
         await this.connectWebSocket();
       }
     } catch (error) {
-      logMessage(null, null, `Login failed for ${this.email}: ${(error as any).message}`, "error");
+      logMessage(this.currentNum, this.total, `Login failed for ${this.email}: ${(error as any).message}`, "error");
     }
   }
 
   public async waitUntilReady(): Promise<void> {
     return new Promise((resolve) => {
-      const checkReady = () => {
+      const checkReady = async () => {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-          logMessage(null, null, `Account ${this.email} is fully ready`, "success");
+          logMessage(this.currentNum, this.total, `Account ${this.currentNum} is fully ready`, "success");
+          await this.getPoint();
+          
           resolve();
         } else {
           setTimeout(checkReady, 1000);
@@ -80,7 +87,6 @@ export class SocketStream {
       checkReady();
     });
   }
-  
 
   private generateBrowserId(): string {
     const characters = 'abcdef0123456789';
@@ -93,12 +99,10 @@ export class SocketStream {
 
   private async connectWebSocket(): Promise<void> {
     const url = "wss://gw0.streamapp365.com/connect";
-    const wsOptions = this.proxy ? { agent: getProxyAgent(this.proxy) } : undefined;
-
+    const wsOptions = this.proxy ? { agent: getProxyAgent(this.proxy, this.currentNum, this.total) } : undefined;
     this.ws = new WebSocket(url, wsOptions);
-
     this.ws.onopen = () => {
-      logMessage(null, null, `WebSocket connected for ${this.email}`, "success");
+      logMessage(this.currentNum, this.total, `WebSocket connected for account ${this.currentNum}`, "success");
       this.sendRegisterMessage();
       this.startPinging();
     };
@@ -110,18 +114,18 @@ export class SocketStream {
           const message = JSON.parse(rawData);
           this.handleMessage(message);
         } catch (error) {
-          logMessage(null, null, `Error parsing JSON: ${(error as any).message}`, "error");
+          logMessage(this.currentNum, this.total, `Error parsing JSON: ${(error as any).message}`, "error");
         }
       }
     };
 
     this.ws.onclose = () => {
-      logMessage(null, null, `WebSocket disconnected for ${this.email}`, "warning");
+      logMessage(this.currentNum, this.total, `WebSocket disconnected for account ${this.currentNum}`, "warning");
       this.reconnectWebSocket();
     };
 
     this.ws.onerror = (error) => {
-      logMessage(null, null, `WebSocket error for ${this.email}: ${error.message}`, "error");
+      logMessage(this.currentNum, this.total, `WebSocket error for account ${this.currentNum}: ${error.message}`, "error");
     };
   }
 
@@ -134,7 +138,7 @@ export class SocketStream {
       };
 
       this.ws.send(JSON.stringify(message));
-      logMessage(null, null, `Registered browser for ${this.email}`, "success");
+      logMessage(this.currentNum, this.total, `Registered browser for account ${this.currentNum}`, "success");
     }
   }
 
@@ -174,7 +178,7 @@ export class SocketStream {
         );
       }
     } else {
-      logMessage(null, null, `Unhandled message type: ${message.type}`, "warning");
+      logMessage(this.currentNum, this.total, `Unhandled message type: ${message.type}`, "warning");
     }
   }
 
@@ -182,7 +186,6 @@ export class SocketStream {
     const pingServer = async () => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify({ type: "ping" }));
-        await this.getPoint();
       }
 
       setTimeout(pingServer, 60000);
@@ -204,11 +207,13 @@ export class SocketStream {
   
       if (response && response.data) {
         const { data } = response.data;
-        const message = `Successfully retrieved data for ${this.email}: Total Points = ${data.totalScore ?? 0}, Today Points = ${data.todayScore ?? 0}`;
-        logMessage(null, null, message, "success");
+        const message = `Successfully retrieved data for account ${this.currentNum}`;
+        logMessage(this.currentNum, this.total, message, "success");
+        logMessage(this.currentNum, this.total, `Total Points = ${data.totalScore ?? 0}`, "success");
+        logMessage(this.currentNum, this.total, `Today Points = ${data.todayScore ?? 0}`, "success");
       }
     } catch (error) {
-      logMessage(null, null, `Error retrieving points for ${this.email}: ${(error as any).message}`, "error");
+      logMessage(this.currentNum, this.total, `Error retrieving points for ${this.email}: ${(error as any).message}`, "error");
     }
   }
 

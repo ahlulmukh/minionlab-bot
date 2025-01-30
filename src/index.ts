@@ -24,7 +24,7 @@ async function main(): Promise<void> {
 
   const proxiesLoaded = loadProxies();
   if (!proxiesLoaded) {
-    console.log(chalk.yellow("No proxy available. Using default IP."));
+    logMessage(null, null, "No Proxy. Using default IP", "debug");
   }
 
   let successful = 0;
@@ -33,12 +33,12 @@ async function main(): Promise<void> {
     console.log(chalk.white("-".repeat(85)));
     logMessage(i + 1, count, "Process", "debug");
     const [email, password] = accounts[i].split(":");
-    const currentProxy = await getRandomProxy();
-    const socketStream = new SocketStream(email, password, currentProxy);
+    const currentProxy = await getRandomProxy(i + 1, count);
+    const socketStream = new SocketStream(email, password, currentProxy, i+1, count);
 
     try {
       await socketStream.login();
-      await socketStream.waitUntilReady();
+      await socketStream.waitUntilReady(); 
       successful++;
     } catch (err) {
       logMessage(i + 1, count, `Error: ${(err as any).message}`, "error");
