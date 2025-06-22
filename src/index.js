@@ -1,18 +1,19 @@
 import chalk from "chalk";
 import fs from "fs";
-import { getRandomProxy, loadProxies } from "./classes/proxy";
-import { SocketStream } from "./classes/ws";
-import { logMessage, rl } from "./utils/logger";
+import { getRandomProxy, loadProxies } from "./main/proxy.js";
+import { SocketStream } from "./main/ws.js";
+import { logMessage, rl } from "./utils/logger.js";
 
-async function main(): Promise<void> {
+async function main() {
   console.log(
     chalk.cyan(`
-░█▄█░▀█▀░█▀█░▀█▀░█▀█░█▀█
-░█░█░░█░░█░█░░█░░█░█░█░█
-░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀░▀
-  By : El Puqus Airdrop
-   github.com/ahlulmukh
- Use it at your own risk
+ __  __ ___ _  _ ___ ___  _  _   _      _   ___
+|  \\/  |_ _| \\| |_ _/ _ \\| \\| | | |    /_\\ | _ )
+| |\\/| || || .\` || | (_) | .\` | | |__ / _ \\| _ \\
+|_|  |_|___|_|\\_|___\\___/|_|\\_| |____/_/ \\_\\___/
+        Minion Lab Auto Running
+          By : El Puqus Airdrop
+         github.com/ahlulmukh
   `)
   );
 
@@ -28,14 +29,20 @@ async function main(): Promise<void> {
   }
 
   let successful = 0;
-  const socketStreams: SocketStream[] = [];
+  const socketStreams = [];
 
   for (let i = 0; i < count; i++) {
     console.log(chalk.white("-".repeat(85)));
     logMessage(i + 1, count, "Process", "debug");
     const [email, password] = accounts[i].split(":");
     const currentProxy = await getRandomProxy(i + 1, count);
-    const socketStream = new SocketStream(email, password, currentProxy, i + 1, count);
+    const socketStream = new SocketStream(
+      email,
+      password,
+      currentProxy,
+      i + 1,
+      count
+    );
     socketStreams.push(socketStream);
 
     try {
@@ -43,12 +50,17 @@ async function main(): Promise<void> {
       await socketStream.waitUntilReady();
       successful++;
     } catch (err) {
-      logMessage(i + 1, count, `Error: ${(err as any).message}`, "error");
+      logMessage(i + 1, count, `Error: ${err.message}`, "error");
     }
   }
 
   console.log(chalk.white("-".repeat(85)));
-  logMessage(null, null, "All accounts are ready. Starting real-time point checking...", "success");
+  logMessage(
+    null,
+    null,
+    "All accounts are ready. Starting real-time point checking...",
+    "success"
+  );
 
   socketStreams.forEach((stream) => {
     stream.startPinging();

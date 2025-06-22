@@ -6,7 +6,7 @@
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) (version v18.20.5)
+- [Node.js](https://nodejs.org/) (version v18.20.5 or higher)
 
 ## Installation
 
@@ -24,7 +24,6 @@
 
    ```bash
    npm install
-   npm run build
    ```
 
 ## Usage
