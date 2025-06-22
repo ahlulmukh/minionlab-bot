@@ -2,6 +2,7 @@
   "name": "minionlab-bot",
   "version": "2.0.0",
   "description": "Auto pinging minion lab",
+  "main": "src/index.js",
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
