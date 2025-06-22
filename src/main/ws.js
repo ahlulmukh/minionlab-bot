@@ -124,6 +124,11 @@ export class SocketStream {
       return;
     }
 
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+
     const url = `wss://${this.gatewayServer}/connect`;
     const wsOptions = this.proxy
       ? { agent: getProxyAgent(this.proxy, this.currentNum, this.total) }
@@ -143,6 +148,9 @@ export class SocketStream {
 
     this.ws.onmessage = (event) => {
       let rawData = event.data.toString();
+      if (rawData === "pong") {
+        return;
+      }
       if (rawData.startsWith("{") && rawData.endsWith("}")) {
         try {
           const message = JSON.parse(rawData);
@@ -158,14 +166,17 @@ export class SocketStream {
       }
     };
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (event) => {
       logMessage(
         this.currentNum,
         this.total,
-        `WebSocket disconnected for account ${this.currentNum}`,
+        `WebSocket disconnected for account ${this.currentNum} (Code: ${event.code})`,
         "warning"
       );
-      this.reconnectWebSocket();
+
+      if (event.code !== 1000) {
+        this.reconnectWebSocket();
+      }
     };
 
     this.ws.onerror = (error) => {
@@ -220,11 +231,6 @@ export class SocketStream {
         clearTimeout(timeoutId);
         const responseText = await response.text();
         const encodedResponse = btoa(encodeURIComponent(responseText));
-        console.log(
-          chalk.green(
-            `Response for task ${taskid} from ${this.email}: ${response.status}`
-          )
-        );
 
         this.ws?.send(
           JSON.stringify({
@@ -278,7 +284,7 @@ export class SocketStream {
     }, 20000);
 
     setInterval(() => {
-      this.dispatchGateway();
+      this.refreshGateway();
     }, 60000);
 
     const pingServer = async () => {
@@ -364,14 +370,54 @@ export class SocketStream {
       "Reconnecting WebSocket...",
       "warning"
     );
+
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
     }
 
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+
     setTimeout(() => {
       this.dispatchGateway();
     }, 3000);
+  }
+
+  async refreshGateway() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      const dispatchUrl = "https://dist.streamapp365.com/dispatch";
+      try {
+        const response = await this.makeRequest("POST", dispatchUrl, {
+          data: {
+            user: this.userId,
+            dev: this.browserId,
+          },
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response && response.data && response.data.server) {
+          this.gatewayServer = response.data.server;
+          logMessage(
+            this.currentNum,
+            this.total,
+            `Gateway refreshed: ${this.gatewayServer}`,
+            "debug"
+          );
+        }
+      } catch (error) {
+        logMessage(
+          this.currentNum,
+          this.total,
+          `Gateway refresh failed: ${error.message}`,
+          "error"
+        );
+      }
+    }
   }
 
   async dispatchGateway() {
@@ -389,14 +435,24 @@ export class SocketStream {
       });
 
       if (response && response.data && response.data.server) {
-        this.gatewayServer = response.data.server;
+        const newGatewayServer = response.data.server;
         logMessage(
           this.currentNum,
           this.total,
-          `Gateway server: ${this.gatewayServer}`,
+          `Gateway server: ${newGatewayServer}`,
           "debug"
         );
-        await this.connectWebSocket();
+
+        if (
+          newGatewayServer !== this.gatewayServer ||
+          !this.ws ||
+          this.ws.readyState !== WebSocket.OPEN
+        ) {
+          this.gatewayServer = newGatewayServer;
+          await this.connectWebSocket();
+        } else {
+          this.gatewayServer = newGatewayServer;
+        }
       } else {
         logMessage(
           this.currentNum,
