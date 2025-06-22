@@ -1,27 +1,23 @@
 {
-  "name": "streamai-bot",
-  "version": "1.0.0",
-  "description": "Auto pinging stream ai",
+  "name": "minionlab-bot",
+  "version": "2.0.0",
+  "description": "Auto pinging minion lab",
+  "main": "src/index.js",
+  "type": "module",
   "scripts": {
-    "start": "node dist/index.js",
-    "build": "tsc",
-    "dev": "ts-node src/index.ts",
-    "dev:watch": "nodemon --exec ts-node src/index.ts"
+    "start": "node src/index.js",
+    "dev": "node src/index.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "axios": "^1.7.7",
-    "chalk": "^4.1.2",
-    "https-proxy-agent": "^7.0.5",
-    "keypress": "^0.2.1",
-    "readline": "^1.3.0",
-    "socks-proxy-agent": "^8.0.5",
-    "ws": "^8.18.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.10",
-    "@types/ws": "^8.5.14",
-    "typescript": "^5.7.3"
+    "axios": "1.10.0",
+    "chalk": "5.4.1",
+    "https-proxy-agent": "7.0.6",
+    "keypress": "0.2.1",
+    "readline": "1.3.0",
+    "socks-proxy-agent": "8.0.5",
+    "user-agents": "1.1.578",
+    "ws": "8.18.2"
   }
 }

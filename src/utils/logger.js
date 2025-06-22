@@ -6,20 +6,19 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
-export const prompt = (question: string): Promise<string> => {
+export const prompt = (question) => {
   return new Promise((resolve) => {
     rl.question(question, (answer) => {
       resolve(answer);
     });
   });
 };
-//
 
 export function logMessage(
-  accountNum: number | null = null,
-  total: number | null = null,
-  message: string = "",
-  messageType: any = "info"
+  accountNum = null,
+  total = null,
+  message = "",
+  messageType = "info"
 ) {
   const now = new Date();
   const timestamp = now
@@ -50,6 +49,9 @@ export function logMessage(
     case "debug":
       logText = chalk.blue(`[~] ${message}`);
       break;
+    case "warning":
+      logText = chalk.yellow(`[!] ${message}`);
+      break;
     default:
       logText = chalk.white(`[?] ${message}`);
   }
@@ -61,7 +63,4 @@ export function logMessage(
   );
 }
 
-
-
 export { rl };
-
