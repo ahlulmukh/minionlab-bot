@@ -178,7 +178,13 @@ export class SocketStream {
 
     const url = `wss://${this.gatewayServer}/connect`;
     const wsOptions = this.proxy
-      ? { agent: getProxyAgent(this.proxy, this.currentNum, this.total) }
+      ? {
+          agent: this.proxyManager.getProxyAgent(
+            this.proxy,
+            this.currentNum,
+            this.total
+          ),
+        }
       : undefined;
     this.ws = new WebSocket(url, wsOptions);
 
