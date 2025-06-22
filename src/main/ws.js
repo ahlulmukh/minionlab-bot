@@ -159,7 +159,6 @@ export class SocketStream {
     }
     return browserId;
   }
-
   async connectWebSocket() {
     if (!this.gatewayServer) {
       logMessage(
@@ -179,7 +178,7 @@ export class SocketStream {
     const url = `wss://${this.gatewayServer}/connect`;
     const wsOptions = this.proxy
       ? {
-          agent: this.proxyManager.getProxyAgent(
+          agent: await this.proxyManager.getProxyAgent(
             this.proxy,
             this.currentNum,
             this.total
