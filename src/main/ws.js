@@ -54,7 +54,7 @@ export class SocketStream {
   }
 
   async login() {
-    const loginUrl = "https://api.allstream.ai/web/v1/auth/emailLogin";
+    const loginUrl = "https://api.minionlab.ai/web/v1/auth/emailLogin";
     const data = {
       email: this.email,
       password: this.password,
