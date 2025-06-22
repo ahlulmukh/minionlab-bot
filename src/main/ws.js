@@ -1,8 +1,9 @@
 import axios from "axios";
 import chalk from "chalk";
+import UserAgent from "user-agents";
 import WebSocket from "ws";
 import { logMessage } from "../utils/logger.js";
-import { getProxyAgent } from "./proxy.js";
+import ProxyManager from "./proxy.js";
 
 export class SocketStream {
   constructor(email, password, proxy = null, currentNum, total) {
@@ -17,57 +18,83 @@ export class SocketStream {
     this.accessToken = "";
     this.gatewayServer = "";
     this.pingInterval = null;
+    this.proxyManager = new ProxyManager();
+  }
 
-    this.axiosConfig = {
-      ...(this.proxy && {
-        httpsAgent: getProxyAgent(this.proxy, this.currentNum, this.total),
-      }),
-      timeout: 60000,
-    };
+  static async create(email, password, proxy = null, currentNum, total) {
+    const instance = new SocketStream(
+      email,
+      password,
+      proxy,
+      currentNum,
+      total
+    );
+    await instance.init();
+    return instance;
+  }
+
+  async init() {
+    await this.initAxios();
+  }
+
+  async initAxios() {
+    this.axios = axios.create({
+      httpsAgent: this.proxy
+        ? await this.proxyManager.getProxyAgent(
+            this.proxy,
+            this.currentNum,
+            this.total
+          )
+        : undefined,
+      timeout: 120000,
+      headers: {
+        "User-Agent": new UserAgent().toString(),
+        accept: "application/json",
+        "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
+        "cache-control": "no-cache",
+        "content-type": "application/json; charset=UTF-8",
+        expires: "0",
+        pragma: "no-cache",
+        priority: "u=1, i",
+        "sec-ch-ua":
+          '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-site",
+        Referer: "https://app.minionlab.ai/",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+      },
+    });
   }
 
   async makeRequest(method, url, config = {}, retries = 3) {
     for (let i = 0; i < retries; i++) {
       try {
-        const response = await axios({
-          method,
-          url,
-          ...this.axiosConfig,
-          ...config,
-        });
-        return response;
+        return await this.axios({ method, url, ...config });
       } catch (error) {
-        if (i === retries - 1) {
-          let errorMsg = `Request failed: ${error.message}`;
-          if (error.response) {
-            errorMsg += ` | Status: ${error.response.status}`;
-            if (error.response.data) {
-              const responseData =
-                typeof error.response.data === "object"
-                  ? JSON.stringify(error.response.data, null, 2)
-                  : error.response.data;
-              errorMsg += ` | Response: ${responseData}`;
-            }
-            if (error.response.headers) {
-              errorMsg += ` | Headers: ${JSON.stringify(
-                error.response.headers
-              )}`;
-            }
-          } else if (error.request) {
-            errorMsg += ` | No response received`;
-          }
-          logMessage(this.currentNum, this.total, errorMsg, "error");
-          return null;
-        }
-        let retryMsg = `Retrying... (${i + 1}/${retries})`;
-        if (error.response) {
-          retryMsg += ` | Last error: ${error.response.status} - ${error.response.statusText}`;
-        } else {
-          retryMsg += ` | Last error: ${error.message}`;
-        }
+        const errorData = error.response ? error.response.data : error.message;
+        logMessage(
+          this.currentNum,
+          this.total,
+          `Request failed: ${error.message}`,
+          "error"
+        );
+        logMessage(
+          this.currentNum,
+          this.total,
+          `Error response data: ${JSON.stringify(errorData, null, 2)}`,
+          "error"
+        );
 
-        logMessage(null, null, retryMsg, "warning");
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        logMessage(
+          this.currentNum,
+          this.total,
+          `Retrying... (${i + 1}/${retries})`,
+          "process"
+        );
+        await new Promise((resolve) => setTimeout(resolve, 12000));
       }
     }
     return null;

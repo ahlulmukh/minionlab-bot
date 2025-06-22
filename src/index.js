@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import fs from "fs";
-import { getRandomProxy, loadProxies } from "./main/proxy.js";
+import ProxyManager from "./main/proxy.js";
 import { SocketStream } from "./main/ws.js";
 import { logMessage, rl } from "./utils/logger.js";
 
@@ -17,13 +17,31 @@ async function main() {
   `)
   );
 
-  const accounts = fs
-    .readFileSync("accountsbot.txt", "utf8")
-    .split("\n")
-    .filter(Boolean);
-  const count = accounts.length;
+  if (!fs.existsSync("accounts.txt")) {
+    console.log(chalk.red("accounts.txt file not found!"));
+    console.log(
+      chalk.yellow("Create accounts.txt with format: email:password")
+    );
+    process.exit(1);
+  }
 
-  const proxiesLoaded = loadProxies();
+  const accounts = fs
+    .readFileSync("accounts.txt", "utf8")
+    .split("\n")
+    .filter((line) => line.trim() && !line.startsWith("#"))
+    .map((line) => {
+      const [email, password] = line.trim().split(":");
+      return { email, password };
+    });
+
+  if (accounts.length === 0) {
+    console.log(chalk.red("No accounts found in accounts.txt"));
+    process.exit(1);
+  }
+
+  const count = accounts.length;
+  const proxyManager = new ProxyManager();
+  const proxiesLoaded = proxyManager.loadProxies();
   if (!proxiesLoaded) {
     logMessage(null, null, "No Proxy. Using default IP", "debug");
   }
@@ -32,13 +50,13 @@ async function main() {
   const socketStreams = [];
 
   for (let i = 0; i < count; i++) {
+    const account = accounts[i];
     console.log(chalk.white("-".repeat(85)));
     logMessage(i + 1, count, "Process", "debug");
-    const [email, password] = accounts[i].split(":");
-    const currentProxy = await getRandomProxy(i + 1, count);
-    const socketStream = new SocketStream(
-      email,
-      password,
+    const currentProxy = await proxyManager.getRandomProxy(i + 1, count);
+    const socketStream = await SocketStream.create(
+      account.email,
+      account.password,
       currentProxy,
       i + 1,
       count
