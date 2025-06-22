@@ -38,15 +38,35 @@ export class SocketStream {
         return response;
       } catch (error) {
         if (i === retries - 1) {
-          logMessage(
-            this.currentNum,
-            this.total,
-            `Request failed: ${error.message}`,
-            "error"
-          );
+          let errorMsg = `Request failed: ${error.message}`;
+          if (error.response) {
+            errorMsg += ` | Status: ${error.response.status}`;
+            if (error.response.data) {
+              const responseData =
+                typeof error.response.data === "object"
+                  ? JSON.stringify(error.response.data, null, 2)
+                  : error.response.data;
+              errorMsg += ` | Response: ${responseData}`;
+            }
+            if (error.response.headers) {
+              errorMsg += ` | Headers: ${JSON.stringify(
+                error.response.headers
+              )}`;
+            }
+          } else if (error.request) {
+            errorMsg += ` | No response received`;
+          }
+          logMessage(this.currentNum, this.total, errorMsg, "error");
           return null;
         }
-        logMessage(null, null, `Retrying... (${i + 1}/${retries})`, "warning");
+        let retryMsg = `Retrying... (${i + 1}/${retries})`;
+        if (error.response) {
+          retryMsg += ` | Last error: ${error.response.status} - ${error.response.statusText}`;
+        } else {
+          retryMsg += ` | Last error: ${error.message}`;
+        }
+
+        logMessage(null, null, retryMsg, "warning");
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     }
